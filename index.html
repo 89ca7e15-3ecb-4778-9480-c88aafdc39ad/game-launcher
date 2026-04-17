@@ -2,35 +2,52 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <title>Запуск игры...</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в игру</title>
+    <style>
+        body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; margin: 0; }
+        .btn { 
+            background: #e30613; color: #fff; padding: 20px 40px; border-radius: 10px; 
+            text-decoration: none; font-weight: bold; font-size: 20px; display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader">Открываем игру...</div>
+    <a href="#" id="iosBtn" class="btn">Нажать для запуска игры</a>
+
     <script>
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionId = urlParams.get('sessionId');
-            if (!sessionId) return;
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+            
+            const targetUrl = `https://front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
-            const targetGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
-
-            window.onload = function() {
-                const closeMessage = JSON.stringify({ Type: "Close" });
-
-                window.location.href = targetGameUrl;
-
-                setTimeout(() => {
-                    try {
+            if (isIOS) {
+                document.getElementById('loader').style.display = 'none';
+                const btn = document.getElementById('iosBtn');
+                btn.style.display = 'block';
+                btn.href = targetUrl;
+                
+                btn.onclick = function() {
+                    setTimeout(() => {
                         if (window.JSPostMessageInterface) {
-                            window.JSPostMessageInterface.OnPostMessage(closeMessage);
-                        } else {
-                            window.postMessage(closeMessage, "*");
+                            window.JSPostMessageInterface.OnPostMessage(JSON.stringify({Type: "Close"}));
                         }
-                    } catch (e) {
+                    }, 1000);
+                };
+            } else {
+                const androidUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+                window.location.href = androidUrl;
+                setTimeout(() => {
+                    if (window.JSPostMessageInterface) {
+                        window.JSPostMessageInterface.OnPostMessage(JSON.stringify({Type: "Close"}));
                     }
-                }, 300); 
-            };
+                }, 1000);
+            }
         })();
     </script>
-</head>
-<body style="background:#000; color:#fff; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; margin:0;">
-    <p>Открываем игру...</p>
 </body>
 </html>
