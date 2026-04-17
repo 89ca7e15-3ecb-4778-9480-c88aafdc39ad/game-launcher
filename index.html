@@ -13,31 +13,41 @@
                 return;
             }
 
-            const realGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+            const targetGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
             window.onload = function() {
-                const message = JSON.stringify({ Type: "Close" });
+                window.location.href = targetGameUrl;
 
-                try {
-                    window.postMessage(message, "*");
-                    if (window.JSPostMessageInterface && window.JSPostMessageInterface.OnPostMessage) {
-                        window.JSPostMessageInterface.OnPostMessage(message);
-                    }
-                    
-                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
-                        window.webkit.messageHandlers.JSPostMessageInterface.postMessage(message);
-                    }
-                } catch (e) {
-                    console.log("Ошибка отправки сообщения мосту:", e);
-                }
                 setTimeout(() => {
-                    window.location.replace(realGameUrl);
-                }, 500);
+                    const message = JSON.stringify({ 
+                        Type: "Close",     // Согласно вашему DTO в C#
+                        action: "close"    // На всякий случай, если в iOS другая логика
+                    });
+
+                    console.log("Отправка команды на закрытие...");
+
+                    try {
+                        // Пытаемся закрыть через все возможные каналы
+                        if (window.JSPostMessageInterface) {
+                            window.JSPostMessageInterface.OnPostMessage(message);
+                        }
+                        window.postMessage(message, "*");
+                        
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
+                            window.webkit.messageHandlers.JSPostMessageInterface.postMessage(message);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                }, 2000);
             };
         })();
     </script>
 </head>
 <body style="background:#000; color:#fff; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif;">
-    <p>Загрузка игры...</p>
+    <div style="text-align:center;">
+        <p>Открываем игру в Safari/Chrome...</p>
+        <p style="font-size: 12px; color: #666;">Это окно закроется автоматически</p>
+    </div>
 </body>
 </html>
