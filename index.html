@@ -8,67 +8,86 @@
         body { background: #000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
         .btn { 
             background: #e30613; color: #fff; padding: 20px 30px; border-radius: 12px; 
-            text-decoration: none; font-weight: bold; font-size: 18px; text-align: center;
-            box-shadow: 0 4px 15px rgba(227, 6, 19, 0.4); border: none; cursor: pointer;
+            text-decoration: none; font-weight: bold; font-size: 18px; border: none; cursor: pointer;
         }
-        .desc { margin-top: 20px; color: #888; font-size: 14px; max-width: 80%; text-align: center; }
     </style>
 </head>
 <body>
 
-    <button id="mainBtn" class="btn">ЗАПУСТИТЬ ИГРУ</button>
-    <div class="desc" id="statusText">Нажмите для перехода в браузер</div>
+    <a href="#" id="gameLink" class="btn">ЗАПУСТИТЬ ИГРУ</a>
+    <p id="status" style="margin-top:20px; color:#888;">Нажмите для перехода в Safari</p>
 
     <script>
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionId = urlParams.get('sessionId');
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-
-            const btn = document.getElementById('mainBtn');
-            const status = document.getElementById('statusText');
+            
+            const link = document.getElementById('gameLink');
+            const status = document.getElementById('status');
 
             if (!sessionId) {
-                status.innerText = "Ошибка: сессия не найдена";
-                btn.style.display = "none";
+                status.innerText = "Ошибка: sessionId не найден";
+                link.style.display = "none";
                 return;
             }
 
-            btn.onclick = function() {
-                // 1. Определяем URL (с паролем для Android, без для iOS)
-                const finalUrl = isIOS 
-                    ? `https://front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`
-                    : `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+            const finalUrl = isIOS 
+                ? `https://front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`
+                : `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
-                // 2. Сначала открываем браузер
-                window.location.href = finalUrl;
-                
-                status.innerText = "Открываем браузер... Закрытие окна через 3 сек.";
-                btn.style.opacity = "0.5";
-                btn.disabled = true;
+            link.href = finalUrl;
 
-                // 3. Закрываем WebView с БОЛЬШОЙ задержкой, чтобы избежать краша
-                setTimeout(() => {
-                    const closeMsg = JSON.stringify({ Type: "Close" });
-
-                    // Пробуем все варианты закрытия для обеих платформ
-                    try {
-                        // Для Android
-                        if (window.JSPostMessageInterface) {
-                            window.JSPostMessageInterface.OnPostMessage(closeMsg);
-                        }
-                        // Универсальный способ (для iOS и Android слушателей)
-                        window.postMessage(closeMsg, "*");
-                        
-                        // Для iOS специфичный мост (если он есть)
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
-                            window.webkit.messageHandlers.JSPostMessageInterface.postMessage(closeMsg);
-                        }
-                    } catch (e) {
-                        console.error("Close error", e);
+            // ФУНКЦИЯ ЗАКРЫТИЯ
+            function sendCloseCommand() {
+                const msg = JSON.stringify({ Type: "Close" });
+                try {
+                    // 1. Android интерфейс
+                    if (window.JSPostMessageInterface) {
+                        window.JSPostMessageInterface.OnPostMessage(msg);
                     }
-                }, 3000); // 3 секунды — это безопасно для Android, чтобы не крашнуться
+                    // 2. Стандартный postMessage (может ловиться и на iOS, и на Android)
+                    window.postMessage(msg, "*");
+                    
+                    // 3. iOS специфичный мост (самый вероятный для WKWebView)
+                    // ВАЖНО: имя обработчика (JSPostMessageInterface) должно совпадать с тем, что в коде iOS
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
+                        window.webkit.messageHandlers.JSPostMessageInterface.postMessage(msg);
+                    }
+                } catch (e) {}
+            }
+
+            link.onclick = function() {
+                if (isIOS) {
+                    // НА IOS:
+                    // 1. Сначала отправляем сигнал закрытия (без задержки!)
+                    sendCloseCommand();
+                    
+                    // 2. Даем браузеру команду на открытие.
+                    // Поскольку приложение уже получило сигнал "Close", оно закроет WebView 
+                    // как раз в тот момент, когда Safari начнет выплывать.
+                    status.innerText = "Переход в Safari...";
+                } else {
+                    // НА ANDROID:
+                    // Оставляем задержку 2 сек, чтобы не было краша при переключении
+                    status.innerText = "Открываем Chrome...";
+                    setTimeout(sendCloseCommand, 2000);
+                }
             };
+
+            // ХИТРОСТЬ ДЛЯ IOS:
+            // Если пользователь открыл Safari, но потом вернулся, а WebView все еще висит
+            // (например, мост не сработал сразу), мы пробуем закрыть его еще раз при фокусе.
+            window.addEventListener('pageshow', function() {
+                if (isIOS) sendCloseCommand();
+            });
+            
+            document.addEventListener("visibilitychange", function() {
+                if (document.visibilityState === 'hidden' && isIOS) {
+                    sendCloseCommand();
+                }
+            });
+
         })();
     </script>
 </body>
