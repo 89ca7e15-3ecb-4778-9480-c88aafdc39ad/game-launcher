@@ -8,6 +8,22 @@
     <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
     
     <script>
+        // Функция самоуничтожения (отправляет команду в МП на закрытие экрана)
+        function selfDestruct() {
+            const msg = JSON.stringify({ Type: "Close" });
+            try {
+                if (window.JSPostMessageInterface) {
+                    window.JSPostMessageInterface.OnPostMessage(msg);
+                }
+                if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
+                    window.webkit.messageHandlers.JSPostMessageInterface.postMessage(msg);
+                }
+                window.postMessage(msg, "*");
+            } catch (e) {
+                console.error("Ошибка при закрытии", e);
+            }
+        }
+
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionId = urlParams.get('sessionId');
@@ -17,12 +33,31 @@
                 return;
             }
 
-            // Формируем ссылку, единую для Android и iOS (со вшитой авторизацией)
             const targetGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
-            // Мгновенный автоматический редирект. 
-            // Больше никаких таймаутов и команд закрытия!
+            // 1. Мгновенно инициируем переход в системный браузер
             window.location.replace(targetGameUrl);
+
+            // 2. Устанавливаем ловушки на ВОЗВРАТ в приложение
+            // Как только пользователь закроет браузер и вернется в МП, 
+            // WebView "проснется" и мгновенно выполнит команду закрытия.
+            
+            document.addEventListener("visibilitychange", function() {
+                if (document.visibilityState === 'visible') {
+                    selfDestruct();
+                }
+            });
+
+            window.addEventListener("focus", function() {
+                selfDestruct();
+            });
+
+            window.addEventListener("pageshow", function(event) {
+                // Если страница загружается из кэша (возврат назад)
+                if (event.persisted) {
+                    selfDestruct();
+                }
+            });
         };
     </script>
 </head>
