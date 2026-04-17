@@ -1,28 +1,43 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="utf-8">
+    <title>Запуск игры...</title>
     <script>
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionId = urlParams.get('sessionId');
 
             if (!sessionId) {
-                document.body.innerHTML = "Ошибка: нет sessionId";
+                document.body.innerHTML = "Ошибка: sessionId не найден";
                 return;
             }
 
             const realGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
-            window.location.replace(realGameUrl);
+            window.onload = function() {
+                const message = JSON.stringify({ Type: "Close" });
 
-            setTimeout(() => {
-                window.location.href = "auchan://";
-            }, 500);
+                try {
+                    window.postMessage(message, "*");
+                    if (window.JSPostMessageInterface && window.JSPostMessageInterface.OnPostMessage) {
+                        window.JSPostMessageInterface.OnPostMessage(message);
+                    }
+                    
+                    if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
+                        window.webkit.messageHandlers.JSPostMessageInterface.postMessage(message);
+                    }
+                } catch (e) {
+                    console.log("Ошибка отправки сообщения мосту:", e);
+                }
+                setTimeout(() => {
+                    window.location.replace(realGameUrl);
+                }, 100);
+            };
         })();
     </script>
 </head>
-<body style="background:#000; color:#fff; text-align:center; padding-top:50px; font-family:sans-serif;">
-    Запуск игры...
+<body style="background:#000; color:#fff; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif;">
+    <p>Загрузка игры...</p>
 </body>
 </html>
