@@ -16,38 +16,29 @@
             const targetGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
             window.onload = function() {
+  
                 window.location.href = targetGameUrl;
 
                 setTimeout(() => {
-                    const message = JSON.stringify({ 
-                        Type: "Close",     // Согласно вашему DTO в C#
-                        action: "close"    // На всякий случай, если в iOS другая логика
-                    });
+                    const message = JSON.stringify({ Type: "Close" });
 
-                    console.log("Отправка команды на закрытие...");
-
-                    try {
-                        // Пытаемся закрыть через все возможные каналы
-                        if (window.JSPostMessageInterface) {
+                    if (window.JSPostMessageInterface && typeof window.JSPostMessageInterface.OnPostMessage === 'function') {
+                        try {
                             window.JSPostMessageInterface.OnPostMessage(message);
+                        } catch (e) {
+                            console.error("Нативный интерфейс недоступен:", e);
                         }
+                    } else {
                         window.postMessage(message, "*");
-                        
-                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
-                            window.webkit.messageHandlers.JSPostMessageInterface.postMessage(message);
-                        }
-                    } catch (e) {
-                        console.error(e);
                     }
-                }, 2000);
+                }, 2000); 
             };
         })();
     </script>
 </head>
-<body style="background:#000; color:#fff; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif;">
+<body style="background:#000; color:#fff; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; margin:0;">
     <div style="text-align:center;">
-        <p>Открываем игру в Safari/Chrome...</p>
-        <p style="font-size: 12px; color: #666;">Это окно закроется автоматически</p>
+        <p>Запуск игры в браузере...</p>
     </div>
 </body>
 </html>
