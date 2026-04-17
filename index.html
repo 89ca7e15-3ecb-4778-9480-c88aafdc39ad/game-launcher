@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('sessionId');
+
+        const realGameUrl = `https://front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+
+        window.location.replace(realGameUrl);
+    </script>
+</head>
+<body>
+    Запуск игры...
+</body>
+</html>
