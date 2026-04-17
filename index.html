@@ -1,16 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionId = urlParams.get('sessionId');
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionId = urlParams.get('sessionId');
 
-        const realGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+            if (!sessionId) {
+                document.body.innerHTML = "Ошибка: нет sessionId";
+                return;
+            }
 
-        window.location.replace(realGameUrl);
+            const realGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+
+            window.location.replace(realGameUrl);
+
+            setTimeout(() => {
+                window.location.href = "auchan://home";
+            }, 500);
+        })();
     </script>
 </head>
-<body>
+<body style="background:#000; color:#fff; text-align:center; padding-top:50px; font-family:sans-serif;">
     Запуск игры...
 </body>
 </html>
