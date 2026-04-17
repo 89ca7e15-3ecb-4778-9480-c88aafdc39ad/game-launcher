@@ -7,38 +7,30 @@
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionId = urlParams.get('sessionId');
-
-            if (!sessionId) {
-                document.body.innerHTML = "Ошибка: sessionId не найден";
-                return;
-            }
+            if (!sessionId) return;
 
             const targetGameUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
             window.onload = function() {
-  
+                const closeMessage = JSON.stringify({ Type: "Close" });
+
                 window.location.href = targetGameUrl;
 
                 setTimeout(() => {
-                    const message = JSON.stringify({ Type: "Close" });
-
-                    if (window.JSPostMessageInterface && typeof window.JSPostMessageInterface.OnPostMessage === 'function') {
-                        try {
-                            window.JSPostMessageInterface.OnPostMessage(message);
-                        } catch (e) {
-                            console.error("Нативный интерфейс недоступен:", e);
+                    try {
+                        if (window.JSPostMessageInterface) {
+                            window.JSPostMessageInterface.OnPostMessage(closeMessage);
+                        } else {
+                            window.postMessage(closeMessage, "*");
                         }
-                    } else {
-                        window.postMessage(message, "*");
+                    } catch (e) {
                     }
-                }, 2000); 
+                }, 300); 
             };
         })();
     </script>
 </head>
 <body style="background:#000; color:#fff; display:flex; justify-content:center; align-items:center; height:100vh; font-family:sans-serif; margin:0;">
-    <div style="text-align:center;">
-        <p>Запуск игры в браузере...</p>
-    </div>
+    <p>Открываем игру...</p>
 </body>
 </html>
