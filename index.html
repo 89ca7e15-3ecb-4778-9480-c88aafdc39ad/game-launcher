@@ -3,50 +3,72 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Вход в игру</title>
+    <title>Auchan Game Launcher</title>
     <style>
-        body { background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: sans-serif; margin: 0; }
+        body { background: #000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
         .btn { 
-            background: #e30613; color: #fff; padding: 20px 40px; border-radius: 10px; 
-            text-decoration: none; font-weight: bold; font-size: 20px; display: none;
+            background: #e30613; color: #fff; padding: 20px 30px; border-radius: 12px; 
+            text-decoration: none; font-weight: bold; font-size: 18px; text-align: center;
+            box-shadow: 0 4px 15px rgba(227, 6, 19, 0.4); border: none; cursor: pointer;
         }
+        .desc { margin-top: 20px; color: #888; font-size: 14px; max-width: 80%; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div id="loader">Открываем игру...</div>
-    <a href="#" id="iosBtn" class="btn">Нажать для запуска игры</a>
+    <button id="mainBtn" class="btn">ЗАПУСТИТЬ ИГРУ</button>
+    <div class="desc" id="statusText">Нажмите для перехода в браузер</div>
 
     <script>
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
             const sessionId = urlParams.get('sessionId');
-            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-            
-            const targetUrl = `https://front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-            if (isIOS) {
-                document.getElementById('loader').style.display = 'none';
-                const btn = document.getElementById('iosBtn');
-                btn.style.display = 'block';
-                btn.href = targetUrl;
-                
-                btn.onclick = function() {
-                    setTimeout(() => {
-                        if (window.JSPostMessageInterface) {
-                            window.JSPostMessageInterface.OnPostMessage(JSON.stringify({Type: "Close"}));
-                        }
-                    }, 1000);
-                };
-            } else {
-                const androidUrl = `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
-                window.location.href = androidUrl;
-                setTimeout(() => {
-                    if (window.JSPostMessageInterface) {
-                        window.JSPostMessageInterface.OnPostMessage(JSON.stringify({Type: "Close"}));
-                    }
-                }, 1000);
+            const btn = document.getElementById('mainBtn');
+            const status = document.getElementById('statusText');
+
+            if (!sessionId) {
+                status.innerText = "Ошибка: сессия не найдена";
+                btn.style.display = "none";
+                return;
             }
+
+            btn.onclick = function() {
+                // 1. Определяем URL (с паролем для Android, без для iOS)
+                const finalUrl = isIOS 
+                    ? `https://front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`
+                    : `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
+
+                // 2. Сначала открываем браузер
+                window.location.href = finalUrl;
+                
+                status.innerText = "Открываем браузер... Закрытие окна через 3 сек.";
+                btn.style.opacity = "0.5";
+                btn.disabled = true;
+
+                // 3. Закрываем WebView с БОЛЬШОЙ задержкой, чтобы избежать краша
+                setTimeout(() => {
+                    const closeMsg = JSON.stringify({ Type: "Close" });
+
+                    // Пробуем все варианты закрытия для обеих платформ
+                    try {
+                        // Для Android
+                        if (window.JSPostMessageInterface) {
+                            window.JSPostMessageInterface.OnPostMessage(closeMsg);
+                        }
+                        // Универсальный способ (для iOS и Android слушателей)
+                        window.postMessage(closeMsg, "*");
+                        
+                        // Для iOS специфичный мост (если он есть)
+                        if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
+                            window.webkit.messageHandlers.JSPostMessageInterface.postMessage(closeMsg);
+                        }
+                    } catch (e) {
+                        console.error("Close error", e);
+                    }
+                }, 3000); // 3 секунды — это безопасно для Android, чтобы не крашнуться
+            };
         })();
     </script>
 </body>
