@@ -3,19 +3,23 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auchan Game Launcher</title>
+    <title>Auchan Game</title>
+    <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
+    
     <style>
         body { background: #000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif; }
         .btn { 
             background: #e30613; color: #fff; padding: 20px 30px; border-radius: 12px; 
             text-decoration: none; font-weight: bold; font-size: 18px; border: none; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
         }
+        #status { margin-top: 20px; color: #888; font-size: 14px; }
     </style>
 </head>
 <body>
 
-    <a href="#" id="gameLink" class="btn">ЗАПУСТИТЬ ИГРУ</a>
-    <p id="status" style="margin-top:20px; color:#888;">Нажмите для перехода в Safari</p>
+    <button id="launchBtn" class="btn">ЗАПУСТИТЬ ИГРУ</button>
+    <div id="status">Нажмите для перехода в Safari/Chrome</div>
 
     <script>
         (function() {
@@ -23,71 +27,53 @@
             const sessionId = urlParams.get('sessionId');
             const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
             
-            const link = document.getElementById('gameLink');
+            const btn = document.getElementById('launchBtn');
             const status = document.getElementById('status');
 
             if (!sessionId) {
-                status.innerText = "Ошибка: sessionId не найден";
-                link.style.display = "none";
+                status.innerText = "Ошибка: сессия не найдена";
+                btn.style.display = "none";
                 return;
             }
 
+            // Настраиваем финальную ссылку
             const finalUrl = isIOS 
                 ? `https://front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`
                 : `https://gs:gs@front-preprod.ecom.auchan.ru/game/?sessionId=${sessionId}`;
 
-            link.href = finalUrl;
-
-            // ФУНКЦИЯ ЗАКРЫТИЯ
-            function sendCloseCommand() {
+            function closeWebView() {
                 const msg = JSON.stringify({ Type: "Close" });
                 try {
-                    // 1. Android интерфейс
+                    // Android мост
                     if (window.JSPostMessageInterface) {
                         window.JSPostMessageInterface.OnPostMessage(msg);
                     }
-                    // 2. Стандартный postMessage (может ловиться и на iOS, и на Android)
+                    // Универсальный postMessage
                     window.postMessage(msg, "*");
-                    
-                    // 3. iOS специфичный мост (самый вероятный для WKWebView)
-                    // ВАЖНО: имя обработчика (JSPostMessageInterface) должно совпадать с тем, что в коде iOS
+                    // iOS мост
                     if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
                         window.webkit.messageHandlers.JSPostMessageInterface.postMessage(msg);
                     }
                 } catch (e) {}
             }
 
-            link.onclick = function() {
-                if (isIOS) {
-                    // НА IOS:
-                    // 1. Сначала отправляем сигнал закрытия (без задержки!)
-                    sendCloseCommand();
-                    
-                    // 2. Даем браузеру команду на открытие.
-                    // Поскольку приложение уже получило сигнал "Close", оно закроет WebView 
-                    // как раз в тот момент, когда Safari начнет выплывать.
-                    status.innerText = "Переход в Safari...";
-                } else {
-                    // НА ANDROID:
-                    // Оставляем задержку 2 сек, чтобы не было краша при переключении
-                    status.innerText = "Открываем Chrome...";
-                    setTimeout(sendCloseCommand, 2000);
-                }
+            btn.onclick = function() {
+                btn.style.display = "none";
+                status.innerText = "Запускаем браузер...";
+
+                // ШАГ 1: ВСЕГДА ПЕРВЫМ ИНИЦИИРУЕМ ПЕРЕХОД
+                window.location.href = finalUrl;
+
+                // ШАГ 2: ЗАКРЫВАЕМ ОКНО С ЗАДЕРЖКОЙ
+                // На iOS нам нужно дать хотя бы секунду, чтобы Safari "подхватил" ссылку
+                // На Android даем 2.5 секунды, чтобы избежать краша из-за смены контекста
+                const delay = isIOS ? 1000 : 2500;
+
+                setTimeout(() => {
+                    status.innerText = "Закрываем окно...";
+                    closeWebView();
+                }, delay);
             };
-
-            // ХИТРОСТЬ ДЛЯ IOS:
-            // Если пользователь открыл Safari, но потом вернулся, а WebView все еще висит
-            // (например, мост не сработал сразу), мы пробуем закрыть его еще раз при фокусе.
-            window.addEventListener('pageshow', function() {
-                if (isIOS) sendCloseCommand();
-            });
-            
-            document.addEventListener("visibilitychange", function() {
-                if (document.visibilityState === 'hidden' && isIOS) {
-                    sendCloseCommand();
-                }
-            });
-
         })();
     </script>
 </body>
