@@ -2,87 +2,40 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Загрузка игры...</title>
-    <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
-    
     <script>
-        // Флаг защиты от двойного срабатывания закрытия
-        let isClosing = false;
+        // 1. МГНОВЕННЫЙ РЕДИРЕКТ. 
+        // Выполняется в ту же миллисекунду, как браузер скачал эту строку кода.
+        // Не ждем загрузки страницы!
+        var searchString = window.location.search;
+        
+        // Убедитесь, что добавляете /game/ , если dostavka не добавляет его сама
+        var targetUrl = "https://dostavka.auchan.ru/game/" + searchString; 
+        
+        // Делаем replace, чтобы батут не сохранялся в истории "Назад"
+        window.location.replace(targetUrl);
 
+        // 2. Фоновая логика закрытия WebView 
+        // (Она останется в памяти старого WebView и сработает при возврате)
+        var isClosing = false;
         function selfDestruct() {
             if (isClosing) return;
             isClosing = true;
-            
-            const msg = JSON.stringify({ Type: "Close" });
             try {
-                if (window.JSPostMessageInterface) {
-                    window.JSPostMessageInterface.OnPostMessage(msg);
-                }
+                var msg = JSON.stringify({ Type: "Close" });
+                if (window.JSPostMessageInterface) window.JSPostMessageInterface.OnPostMessage(msg);
                 if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
                     window.webkit.messageHandlers.JSPostMessageInterface.postMessage(msg);
                 }
-                window.postMessage(msg, "*");
-            } catch (e) {
-                console.error("Ошибка при закрытии", e);
-            }
+            } catch (e) {}
         }
 
-        window.onload = function() {
-            // 1. Берем ВСЮ строку запроса целиком (включая sessionId, channel и любые новые параметры)
-            const searchString = window.location.search; 
-            const urlParams = new URLSearchParams(searchString);
-            
-            if (!urlParams.has('sessionId')) {
-                document.getElementById('status').innerText = "Ошибка: sessionId не найден";
-                return;
-            }
-
-            // 2. ФОРМИРОВАНИЕ ССЫЛКИ. 
-            // ВАЖНО: Домен должен отличаться от основного домена МП (www.auchan.ru), иначе будет бесконечный цикл!
-            // Пример: используем games.auchan.ru
-            const TARGET_DOMAIN = "https://dostavka.auchan.ru"; 
-            const targetGameUrl = `${TARGET_DOMAIN}/game/${searchString}`;
-
-            // Показываем кнопку-заглушку, если ОС заблокировала автоматический редирект (защита от всплывающих окон)
-            setTimeout(() => {
-                const btn = document.getElementById('fallback-btn');
-                if (btn) {
-                    btn.href = targetGameUrl;
-                    btn.style.display = 'block';
-                }
-            }, 1500);
-
-            // 3. Пытаемся открыть системный браузер
-            window.location.replace(targetGameUrl);
-
-            // 4. Ловушки на возврат в приложение
-            document.addEventListener("visibilitychange", function() {
-                if (document.visibilityState === 'visible') selfDestruct();
-            });
-
-            window.addEventListener("focus", function() {
-                selfDestruct();
-            });
-
-            window.addEventListener("pageshow", function(event) {
-                if (event.persisted) selfDestruct();
-            });
-        };
+        document.addEventListener("visibilitychange", function() { if (document.visibilityState === 'visible') selfDestruct(); });
+        window.addEventListener("focus", selfDestruct);
+        window.addEventListener("pageshow", function(e) { if (e.persisted) selfDestruct(); });
     </script>
+    
+    <title>Загрузка...</title>
 </head>
-<body style="background: #000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif;">
-    
-    <svg width="40" height="40" viewBox="0 0 50 50" style="margin-bottom: 20px;">
-        <circle cx="25" cy="25" r="20" fill="none" stroke="#E6261F" stroke-width="5" stroke-dasharray="31.4 31.4" stroke-linecap="round">
-            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
-        </circle>
-    </svg>
-
-    <h2 id="status" style="font-size: 18px; font-weight: normal;">Запуск игры...</h2>
-    
-    <a id="fallback-btn" style="display: none; color: #fff; text-decoration: underline; margin-top: 20px; font-size: 14px; opacity: 0.7;">
-        Нажмите сюда, если ничего не происходит
-    </a>
-</body>
+<body style="background: #000;">
+    </body>
 </html>
