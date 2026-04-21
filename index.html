@@ -50,4 +50,51 @@
             try {
                 const hiddenLink = document.createElement('a');
                 hiddenLink.href = targetGameUrl;
-                hiddenLink.target = '_blank'; // <- Тот самый три
+                hiddenLink.target = '_blank'; // <- Тот самый триггер для Safari
+                hiddenLink.style.display = 'none';
+                document.body.appendChild(hiddenLink);
+                
+                // Программный клик
+                hiddenLink.click();
+            } catch (e) {
+                console.warn("Авто-клик заблокирован", e);
+            }
+
+            // Если через 1.5 секунды юзер всё еще тут (авто-клик заблокирован iOS),
+            // показываем большую кнопку, чтобы он нажал сам.
+            setTimeout(() => {
+                fallbackBtn.style.display = 'block';
+                document.getElementById('status').innerText = "Нажмите кнопку ниже";
+                document.getElementById('loader').style.display = 'none';
+            }, 1500);
+
+            // 4. Ловушки на возврат в приложение
+            document.addEventListener("visibilitychange", function() {
+                if (document.visibilityState === 'visible') selfDestruct();
+            });
+
+            window.addEventListener("focus", function() {
+                selfDestruct();
+            });
+
+            window.addEventListener("pageshow", function(event) {
+                if (event.persisted) selfDestruct();
+            });
+        };
+    </script>
+</head>
+<body style="background: #000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif;">
+    
+    <svg id="loader" width="40" height="40" viewBox="0 0 50 50" style="margin-bottom: 20px;">
+        <circle cx="25" cy="25" r="20" fill="none" stroke="#E6261F" stroke-width="5" stroke-dasharray="31.4 31.4" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
+        </circle>
+    </svg>
+
+    <h2 id="status" style="font-size: 18px; font-weight: normal; margin-bottom: 30px;">Запуск игры...</h2>
+    
+    <a id="fallback-btn" target="_blank" style="display: none; background: #E6261F; color: #fff; text-decoration: none; padding: 15px 30px; border-radius: 8px; font-size: 16px; font-weight: bold;">
+        Открыть игру
+    </a>
+</body>
+</html>
