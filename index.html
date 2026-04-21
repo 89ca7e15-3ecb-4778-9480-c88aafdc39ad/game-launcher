@@ -4,12 +4,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Загрузка игры...</title>
-    
     <link rel="icon" href="data:;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==">
     
     <script>
-        // Функция самоуничтожения (отправляет команду в МП на закрытие экрана)
+        // Флаг защиты от двойного срабатывания закрытия
+        let isClosing = false;
+
         function selfDestruct() {
+            if (isClosing) return;
+            isClosing = true;
+            
             const msg = JSON.stringify({ Type: "Close" });
             try {
                 if (window.JSPostMessageInterface) {
@@ -25,27 +29,35 @@
         }
 
         window.onload = function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const sessionId = urlParams.get('sessionId');
+            // 1. Берем ВСЮ строку запроса целиком (включая sessionId, channel и любые новые параметры)
+            const searchString = window.location.search; 
+            const urlParams = new URLSearchParams(searchString);
             
-            if (!sessionId) {
+            if (!urlParams.has('sessionId')) {
                 document.getElementById('status').innerText = "Ошибка: sessionId не найден";
                 return;
             }
 
-            const targetGameUrl = `https://www.auchan.ru/game/?sessionId=${sessionId}`;
+            // 2. ФОРМИРОВАНИЕ ССЫЛКИ. 
+            // Пример: используем games.auchan.ru
+            const TARGET_DOMAIN = "https://www.auchan.ru"; 
+            const targetGameUrl = `${TARGET_DOMAIN}/game/${searchString}`;
 
-            // 1. Мгновенно инициируем переход в системный браузер
+            // Показываем кнопку-заглушку, если ОС заблокировала автоматический редирект (защита от всплывающих окон)
+            setTimeout(() => {
+                const btn = document.getElementById('fallback-btn');
+                if (btn) {
+                    btn.href = targetGameUrl;
+                    btn.style.display = 'block';
+                }
+            }, 1500);
+
+            // 3. Пытаемся открыть системный браузер
             window.location.replace(targetGameUrl);
 
-            // 2. Устанавливаем ловушки на ВОЗВРАТ в приложение
-            // Как только пользователь закроет браузер и вернется в МП, 
-            // WebView "проснется" и мгновенно выполнит команду закрытия.
-            
+            // 4. Ловушки на возврат в приложение
             document.addEventListener("visibilitychange", function() {
-                if (document.visibilityState === 'visible') {
-                    selfDestruct();
-                }
+                if (document.visibilityState === 'visible') selfDestruct();
             });
 
             window.addEventListener("focus", function() {
@@ -53,15 +65,23 @@
             });
 
             window.addEventListener("pageshow", function(event) {
-                // Если страница загружается из кэша (возврат назад)
-                if (event.persisted) {
-                    selfDestruct();
-                }
+                if (event.persisted) selfDestruct();
             });
         };
     </script>
 </head>
-<body style="background: #000; color: #fff; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif;">
-    <h2 id="status">Открываем игру в браузере...</h2>
+<body style="background: #000; color: #fff; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0; font-family: sans-serif;">
+    
+    <svg width="40" height="40" viewBox="0 0 50 50" style="margin-bottom: 20px;">
+        <circle cx="25" cy="25" r="20" fill="none" stroke="#E6261F" stroke-width="5" stroke-dasharray="31.4 31.4" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
+        </circle>
+    </svg>
+
+    <h2 id="status" style="font-size: 18px; font-weight: normal;">Запуск игры...</h2>
+    
+    <a id="fallback-btn" style="display: none; color: #fff; text-decoration: underline; margin-top: 20px; font-size: 14px; opacity: 0.7;">
+        Нажмите сюда, если ничего не происходит
+    </a>
 </body>
 </html>
