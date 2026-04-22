@@ -2,40 +2,63 @@
 <html lang="ru">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Загрузка игры...</title>
+    <style>
+        body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .spinner { width: 40px; height: 40px; }
+    </style>
     <script>
-        // 1. МГНОВЕННЫЙ РЕДИРЕКТ. 
-        // Выполняется в ту же миллисекунду, как браузер скачал эту строку кода.
-        // Не ждем загрузки страницы!
-        var searchString = window.location.search;
-        
-        // Убедитесь, что добавляете /game/ , если dostavka не добавляет его сама
-        var targetUrl = "https://dostavka.auchan.ru/game/" + searchString; 
-        
-        // Делаем replace, чтобы батут не сохранялся в истории "Назад"
-        window.location.replace(targetUrl);
-
-        // 2. Фоновая логика закрытия WebView 
-        // (Она останется в памяти старого WebView и сработает при возврате)
-        var isClosing = false;
-        function selfDestruct() {
-            if (isClosing) return;
-            isClosing = true;
+        function closeWebView() {
+            const msg = JSON.stringify({ Type: "Close" });
             try {
-                var msg = JSON.stringify({ Type: "Close" });
-                if (window.JSPostMessageInterface) window.JSPostMessageInterface.OnPostMessage(msg);
+                if (window.JSPostMessageInterface) {
+                    window.JSPostMessageInterface.OnPostMessage(msg);
+                }
                 if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.JSPostMessageInterface) {
                     window.webkit.messageHandlers.JSPostMessageInterface.postMessage(msg);
                 }
-            } catch (e) {}
+                window.postMessage(msg, "*");
+            } catch (e) {
+                console.error("Ошибка при закрытии", e);
+            }
         }
 
-        document.addEventListener("visibilitychange", function() { if (document.visibilityState === 'visible') selfDestruct(); });
-        window.addEventListener("focus", selfDestruct);
-        window.addEventListener("pageshow", function(e) { if (e.persisted) selfDestruct(); });
+        window.onload = function() {
+            // 1. Берем текущие параметры (sessionId, channel и т.д.)
+            let searchString = window.location.search;
+
+            if (!searchString.includes('sessionId')) {
+                console.error("Ошибка: sessionId не найден");
+                return;
+            }
+
+            // 2. Добавляем магический параметр маршрутизации.
+            // Для теста замените 'openinbrowser' на 'openinexternalwebview'
+            const routingParam = 'openinbrowser'; // или 'openinexternalwebview'
+            
+            searchString = searchString ? searchString + '&' + routingParam : '?' + routingParam;
+
+            // 3. Формируем итоговую ссылку
+            const targetUrl = `https://www.auchan.ru/game/${searchString}`;
+
+            // 4. Триггерим редирект. 
+            // МП перехватит эту ссылку, увидит параметр и запустит нужный браузер.
+            window.location.replace(targetUrl);
+
+            // 5. Даем МП полсекунды на перехват ссылки, затем закрываем текущий WebView, 
+            // чтобы под шторкой браузера не остался висеть пустой черный экран.
+            setTimeout(() => {
+                closeWebView();
+            }, 500);
+        };
     </script>
-    
-    <title>Загрузка...</title>
 </head>
-<body style="background: #000;">
-    </body>
+<body>
+    <svg class="spinner" viewBox="0 0 50 50">
+        <circle cx="25" cy="25" r="20" fill="none" stroke="#E6261F" stroke-width="5" stroke-dasharray="31.4 31.4" stroke-linecap="round">
+            <animateTransform attributeName="transform" type="rotate" from="0 25 25" to="360 25 25" dur="1s" repeatCount="indefinite"/>
+        </circle>
+    </svg>
+</body>
 </html>
